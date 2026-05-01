@@ -46,9 +46,14 @@ async def upload_pdf(file: UploadFile = File(...)):
 
 @app.post("/ask")
 async def ask(request: AskRequest):
-    answer = answer_question(
-        document_id=request.document_id,
-        question=request.question,
-    )
+    try:
+        answer = answer_question(
+            document_id=request.document_id,
+            question=request.question,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     return {"answer": answer}

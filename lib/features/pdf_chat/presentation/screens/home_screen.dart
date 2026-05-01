@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../../data/services/pdf_chat_api_service.dart';
 import '../controller/pdf_chat_controller.dart';
 import 'chat_screen.dart';
-
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,16 +25,36 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final file = File(result.files.single.path!);
 
-    await controller.uploadPdf(file);
+    try {
+      await controller.uploadPdf(file);
+    } on PdfChatApiException catch (error) {
+      if (!mounted) return;
+      _showUploadError(error.message);
+      return;
+    } on SocketException {
+      if (!mounted) return;
+      _showUploadError(
+        'Could not connect to the API. Make sure the backend is running on port 8000.',
+      );
+      return;
+    } catch (_) {
+      if (!mounted) return;
+      _showUploadError('Could not upload the PDF. Please try again.');
+      return;
+    }
 
     if (!mounted) return;
 
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => ChatScreen(controller: controller),
-      ),
+      MaterialPageRoute(builder: (_) => ChatScreen(controller: controller)),
     );
+  }
+
+  void _showUploadError(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -52,10 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const Spacer(),
                   const Text(
                     'Chat with your PDF',
-                    style: TextStyle(
-                      fontSize: 34,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -106,7 +123,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: FilledButton(
                       onPressed: controller.isUploading ? null : pickPdf,
                       child: Text(
-                        controller.isUploading ? 'Please wait...' : 'Choose PDF',
+                        controller.isUploading
+                            ? 'Please wait...'
+                            : 'Choose PDF',
                       ),
                     ),
                   ),
